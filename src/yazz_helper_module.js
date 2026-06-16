@@ -469,6 +469,91 @@ module.exports = {
 
         return null
     },
+    generateAppHtml:                async function  (  thisDb  ,  baseComponentId  ) {
+        /* Generate (or regenerate) the static HTML file for an app given its base_component_id.
+           Mirrors the save_html block in saveCodeV3 but works on already-saved code. */
+        let mm = this
+        let row = await mm.getQuickSqlOneRow(
+            thisDb,
+            "select id, code from level_2_system_code where base_component_id = ? order by creation_timestamp desc limit 1",
+            [baseComponentId]
+        )
+        if (!row || !row.code) {
+            return { error: "App not found: " + baseComponentId }
+        }
+        let code        = row.code.toString()
+        let sha1sum     = row.id
+        let displayName = mm.helpers.getValueOfCodeString(code, "display_name")
+        let useDb       = mm.helpers.getValueOfCodeString(code, "use_db")
+
+        let origFilePath        = path.join(__dirname, '../public/go.html')
+        let newStaticFilePath   = path.join(mm.userData, 'apps/' + baseComponentId + '.html')
+        let newStaticFileContent = fs.readFileSync(origFilePath).toString()
+
+        newStaticFileContent = newStaticFileContent.replace("isStaticHtmlPageApp: false", "isStaticHtmlPageApp: true")
+
+        let escapedCode = escape(code)
+        newStaticFileContent = newStaticFileContent.replace("***STATIC_NAME***", displayName || "")
+        newStaticFileContent = newStaticFileContent.replace("***STATIC_NAME***", displayName || "")
+        newStaticFileContent = newStaticFileContent.replace("***STATIC_BASE_COMPONENT_ID***", baseComponentId)
+        newStaticFileContent = newStaticFileContent.replace("***STATIC_BASE_COMPONENT_ID***", baseComponentId)
+        newStaticFileContent = newStaticFileContent.replace("***STATIC_CODE_ID***", sha1sum)
+        newStaticFileContent = newStaticFileContent.replace("***STATIC_CODE_ID***", sha1sum)
+
+        let pipelineCode  = await mm.getPipelineCode({pipelineFileName: "runtimePipelineYazzAppVueSkeleton.js"})
+        let pipelineCode2 = await mm.getPipelineCode({pipelineFileName: "runtimePipelineYazzAppVueMethods.js"})
+        let pipelineCode3 = await mm.getPipelineCode({pipelineFileName: "runtimePipelineYazzAppVueHtmlTemplate.js"})
+        let pipelineCode4 = await mm.getPipelineCode({pipelineFileName: "runtimePipelineYazzEditorVueMethods.js"})
+        let pipelineCode5 = await mm.getPipelineCode({pipelineFileName: "runtimePipelineYazzEditorVueHtmlTemplate.js"})
+        let pipelineCode6 = await mm.getPipelineCode({pipelineFileName: "runtimePipelineYazzCommonVueMethods.js"})
+
+        let newCode = `
+            yz.runtimePipelines["APP"] = {}
+            yz.runtimePipelines["APP"].code = unescape(\`${escape(pipelineCode.toString())}\`)
+            yz.runtimePipelines["APP_UI_METHODS"] = {}
+            yz.runtimePipelines["APP_UI_METHODS"].code = unescape(\`${escape(pipelineCode2.toString())}\`)
+            yz.runtimePipelines["APP_UI_TEMPLATE"] = {}
+            yz.runtimePipelines["APP_UI_TEMPLATE"].code = unescape(\`${escape(pipelineCode3.toString())}\`)
+            yz.runtimePipelines["EDITOR_UI_METHODS"] = {}
+            yz.runtimePipelines["EDITOR_UI_METHODS"].code = unescape(\`${escape(pipelineCode4.toString())}\`)
+            yz.runtimePipelines["EDITOR_UI_TEMPLATE"] = {}
+            yz.runtimePipelines["EDITOR_UI_TEMPLATE"].code = unescape(\`${escape(pipelineCode5.toString())}\`)
+            yz.runtimePipelines["COMMON_UI_METHODS"] = {}
+            yz.runtimePipelines["COMMON_UI_METHODS"].code = unescape(\`${escape(pipelineCode6.toString())}\`)
+            yz.cacheThisComponentCode({ codeId: "${sha1sum}", code: /*APP_START*/unescape(\`${escapedCode}\`)/*APP_END*/ })
+            yz.componentsAPI.vue.setComponentLoadedMethod({codeId: "${sha1sum}", loadMethod: "STATIC"})
+            yz.pointBaseComponentIdAtCode({ baseComponentId: "${baseComponentId}", codeId: "${sha1sum}" })
+`
+
+        newCode += "/*COMPONENTS_START*/"
+        let subComponents = await mm.getSubComponents(code)
+        for (let i = 0; i < subComponents.length; i++) {
+            let sc = subComponents[i]
+            if (!sc.child_code_id) {
+                let sqlR = await mm.getQuickSqlOneRow(thisDb,
+                    "select id, code from level_2_system_code where base_component_id = ? order by creation_timestamp desc limit 1",
+                    [sc.child_base_component_id])
+                if (sqlR) { sc.child_code_id = sqlR.id }
+            }
+            if (sc.child_code_id) {
+                let sqlr2 = await mm.getQuickSqlOneRow(thisDb, "select code from level_2_system_code where id = ?", [sc.child_code_id])
+                if (sqlr2) {
+                    newCode += `
+                        await yz.universalSaveStaticUIControl({ sha1sum: "${sc.child_code_id}", unescapedCode: unescape(\`${escape(sqlr2.code.toString())}\`), baseComponentId: "${sc.child_base_component_id}", loadMethod: "STATIC" })
+                    `
+                }
+            }
+        }
+        newCode += "/*COMPONENTS_END*/"
+
+        newStaticFileContent = newStaticFileContent.replace("//***ADD_STATIC_CODE", newCode)
+        newStaticFileContent = mm.helpers.replaceBetween(newStaticFileContent, "/*static_hostname_start*/", "/*static_hostname_end*/", "'" + mm.userData + "'")
+        newStaticFileContent = mm.helpers.replaceBetween(newStaticFileContent, "/*static_port_start*/", "/*static_port_end*/", mm.port)
+
+        fs.mkdirSync(path.dirname(newStaticFilePath), { recursive: true })
+        fs.writeFileSync(newStaticFilePath, newStaticFileContent)
+        return { success: true, path: newStaticFilePath }
+    },
     updateDbSchemaFromSave:                function        (  thisDb  ,  sqlite  ,  baseComponentId  ) {
         //----------------------------------------------------------------------------------/
         //

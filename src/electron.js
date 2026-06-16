@@ -4839,6 +4839,19 @@ async function  startServices                           (  ) {
         res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
         res.end(JSON.stringify(saveResult))
     });
+    app.post(   "/http_post_generate_app_html",                             async function (req, res) {
+        // Generate (or re-generate) the static HTML file for an app so it can be
+        // served at /app/{baseComponentId}.html
+        let baseComponentId = req.body.value.base_component_id;
+        let result = await yz.generateAppHtml(dbsearch, baseComponentId);
+        if (result && result.error) {
+            res.writeHead(404, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify(result));
+            return;
+        }
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({ success: true }));
+    });
     app.get(    '/http_get_ipfs_content',                                   async function (req, res, next) {
         // this is called from the salver server to this master server
         let contentHash     = req.query.content_hash
@@ -5314,7 +5327,7 @@ async function  startServices                           (  ) {
 
 
     //app.get('/app/*', keycloakProtector({compIdFromReqFn: getBaseComponentIdFromRequest}), function (req, res, next) {
-    app.get('/app/*', function (req, res, next) {
+    app.get('/app/*', async function (req, res, next) {
         console.log("app.get('/app'): ")
         console.log("    req.cookies: " + JSON.stringify(req.cookies,null,2))
 
@@ -5333,6 +5346,24 @@ async function  startServices                           (  ) {
         //console.log("path: " + path);
 
         let appFilePath = path.join(userData, 'apps/' + appHtmlFile)
+
+        // If the static HTML file doesn't exist yet, generate it on the fly
+        if (!fs.existsSync(appFilePath)) {
+            console.log("app.get('/app'): file not found, generating: " + appFilePath)
+            try {
+                let result = await yz.generateAppHtml(dbsearch, appName)
+                if (result && result.error) {
+                    res.writeHead(404, {'Content-Type': 'text/plain'});
+                    res.end("App not found: " + appName + "\n" + result.error);
+                    return;
+                }
+            } catch(genErr) {
+                res.writeHead(500, {'Content-Type': 'text/plain'});
+                res.end("Error generating app HTML: " + genErr.message + "\n" + genErr.stack);
+                return;
+            }
+        }
+
         let fileC2 = fs.readFileSync(appFilePath, 'utf8').toString()
         res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
         res.end(fileC2);

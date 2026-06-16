@@ -10979,8 +10979,7 @@
 
                                     <button   style='position:absolute;top:250px;left:20px;opacity:0.9;box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);border-radius: 5px;margin-bottom:10px;margin-left:40px;padding:10px;font-size:20px;z-index:2147483647;'
                                               class='btn btn-sm'
-                                              v-if="item.component_type=='app'"
-                                              v-on:click='runAppInThisBrowserTab(item.base_component_id);'>
+                                              v-on:click='$event.stopPropagation();runAppInThisBrowserTab(item.base_component_id, item.code_id)'>
 
                                         <img    src='/driver_icons/play.png'
                                                 style='position:relative;max-width: 40px; left:0px; top: 0px;max-height: 40px;margin-left: auto;margin-right: auto;display: inline-block;' />
@@ -11877,22 +11876,10 @@
                                         |     ---------------
                                         |________________________________________________________________________ */
                                         let mm = this
-                                        //window.open(
-                                        //    location.protocol +
-                                        //    "//" + location.hostname + ":" +
-                                        //    location.port + "/app/" + baseComponentId + ".html"
-                                        //    ,
-                                        //    baseComponentId)
-                                        let alreadyExists = yz.uiDb.sqlui1("select * from  ui_table_running_apps  where code_id = ?", [code_id])
-                                        let nid = yz.mainVars.nextGlobalAppId++;
-                                        if (alreadyExists) {
-                                            if (alreadyExists.status == "RUNNING") {
-
-                                            } else {
-                                                yz.uiDb.sqlui(   "insert  into  ui_table_running_apps  (  id  ,  code_id  ,  app_instance_id  ,  base_component_id, logo, display_name,component_type) values (?,?,?,?,?,?,?)",
-                                                    [yz.uiDb.uiDbNextId ++ , code_id, nid  , baseComponentId,null, null, null])
-                                            }
-                                        }
+                                        window.location.href =
+                                            location.protocol +
+                                            "//" + location.hostname + ":" +
+                                            location.port + "/app/" + baseComponentId + ".html"
                                         mm.refresh++
                                     },
                                     runAppInNewBrowserTab:              async function  ( baseComponentId, code_id ) {
