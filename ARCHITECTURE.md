@@ -4,7 +4,7 @@
 
 Yazz (also called VisualJS) is a low-code web application builder. Users drag and drop components onto a canvas, wire them together, and write small JavaScript snippets as glue code. The result is a reusable app identified by the SHA-256 hash of its source.
 
-The system is a single-process Node.js server (`electron.js`) that serves a Vue.js 2 single-page application (`go.html`). All state lives in a local SQLite database. There is no build step and no separate frontend build artifact—`go.html` is both the editor and the app runner.
+The system is a single-process Node.js server (`electron.js`) that serves a Vue.js 3 single-page application (`go.html`). All state lives in a local SQLite database. There is no build step and no separate frontend build artifact—`go.html` is both the editor and the app runner.
 
 ---
 
@@ -212,7 +212,7 @@ A module (`yz`) shared across the server. Key functions:
 
 The entire frontend in one file. Contains:
 
-- The Vue 2 app instance with all data, computed properties, methods, and watchers.
+- The Vue 3 app instance with all data, computed properties, methods, and watchers.
 - The home screen (app card grid with Edit and Play buttons).
 - The drag-and-drop editor canvas.
 - Static app runner (when `isStaticHtmlPageApp: true`).
