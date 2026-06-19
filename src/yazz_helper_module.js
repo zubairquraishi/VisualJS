@@ -26,7 +26,7 @@ let copyMigration;
 
 const ipfsAPI = require('ipfs-api');
 const async = require("async");
-let fileURLToPath =require( 'node:url').fileURLToPath;
+let fileURLToPath =require( 'url').fileURLToPath;
 
 //const ipfs = ipfsAPI('ipfs.infura.io', '5001', {protocol: 'https'})
 const ipfs = ipfsAPI('127.0.0.1', '5001', {protocol: 'http'})
